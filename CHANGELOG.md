@@ -1,21 +1,18 @@
 # Changelog
 
-## v2.62.0
+## v2.68.2
 
-[Added]
-- Assets alternativos de branding **VCA** e **VC Analyzer** em `app/static/branding-ready/`, reutilizando o símbolo atual e permanecendo totalmente inativos no runtime.
-- Testes de contrato para a arquitetura Ajuda/Projeto, faixa compacta de contexto, retorno ao topo real da página e isolamento dos assets de branding futuro.
+### [Added]
+- Classificação direcional de early media (`BIDIRECTIONAL`, `RETURN_ONLY`, `OUTBOUND_ONLY`, `UNRESOLVED`, `NOT_OBSERVED`) baseada nos endpoints RTP anunciados pelo SDP das respostas provisórias `180/183`.
+- Evidências estruturadas `early_media_return_path_observed`, `provisional_sdp_endpoints` e direção da mídia provisória nas análises Micro/relatórios.
+- Testes de regressão para o cenário real `183` sem `180` com RTP apenas originador → destino antes do `200 OK`.
 
-[Changed]
-- No menu `Projeto`, o rótulo `CONTRIBUTING` passa a ser apresentado como **Contributing**.
-- O botão `↑ Topo` volta ao início real da página, já que a navegação operacional de resultados permanece sticky durante a rolagem.
-- A faixa de contexto da análise foi simplificada para `Captura: <job_id> · Modo: <modo> · Saúde: <saúde>`; em visualização histórica de Sinalização, o modo identifica explicitamente que deriva de snapshot Completo.
-- A estrutura conceitual fica consolidada: áreas operacionais somente em `Executivo / Visão Macro / Chamadas / Topologia / Diagnóstico`; `Metodologia` em `Projeto`; `Glossário` em `Ajuda`. O container técnico de Metodologia também deixa a área estrutural do workspace operacional.
-- Cache-busting de `app.js` e `vca.css` atualizado para `20260921-2620`.
+### [Changed]
+- `SIP_PROGRESS_WITHOUT_RINGING` deixa de ser suprimido pela mera existência de RTP pré-atendimento: agora exige mídia de retorno observável para suprimir o achado.
+- Análise Micro em UI, HTML/PDF e DOCX passa a expor a classificação direcional da early media e se houve fluxo de retorno.
 
-[Fixed]
-- Eliminada a duplicação visual `Captura atual + Job + Modo original + Visualização` na faixa compacta de contexto.
-- Corrigido o comportamento do botão `↑ Topo`, que ainda retornava apenas à região das abas após elas se tornarem sticky.
+### [Fixed]
+- Corrigido falso negativo da v2.68.1 em cenários com `183 + SDP` e early media unidirecional somente no sentido originador → destino, nos quais o chamador pode permanecer sem ringback remoto.
 
-[To do]
+### [To do]
 - Obter/homologar captura real com RTCP XR PT=207 / VoIP Metrics e MOS/R-Factor reportados e reexecutar o Gate Core VoIP.
