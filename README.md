@@ -1,6 +1,6 @@
 # VoIP Capture Analyzer
 
-> **v2.62.0 — UX Information Architecture:** refina a arquitetura de informação sem alterar a semântica analítica: Metodologia permanece em Projeto, Glossário somente em Ajuda, retorno ao topo volta ao início real da página, a faixa de contexto é compactada para Job/modo/saúde e duas identidades visuais alternativas (`VCA` e `VC Analyzer`) ficam preparadas como assets inativos para eventual migração futura.
+> **v2.68.2 — Directional Early Media Diagnostics:** evolui o diagnóstico de progresso SIP para distinguir early media por direção usando os endpoints anunciados no SDP provisório. O VCA diferencia RTP de saída de RTP de retorno antes do `200 OK`, preserva o diagnóstico conservador de `183` sem `180` e mantém o Gate Core VoIP aguardando captura real com RTCP XR/MOS-R-Factor.
 
 
 Framework web para análise técnica de capturas VoIP, com foco em **SIP, SDP, RTP e RTCP**, reconstrução de chamadas, correlação de pernas B2BUA, métricas de mídia e diagnóstico baseado em evidências.
@@ -27,6 +27,7 @@ Framework web para análise técnica de capturas VoIP, com foco em **SIP, SDP, R
 - Registro de validações externas no checklist, com status, evidência e resultado, refletidos nos relatórios PDF e DOCX.
 - Histórico/auditoria das alterações de validações externas durante a análise, preservando o estado anterior e o novo estado.
 - Persistência local do histórico em SQLite, incluindo análises concluídas e estados terminais de erro/cancelamento; análises concluídas podem ser reabertas após reinicializações e regenerar PDF/DOCX sob demanda.
+- **Autenticação TOTP por papel e SQLite protegido (v2.64):** `AUTH_MODE=totp` oferece acesso local `viewer`/`analyst`/`admin` sem usuário/senha, Google ou Microsoft. Projeto → Banco de dados exige sessão Admin e reconfirmação do TOTP Admin para exportar/importar `.vcadb`; o segredo Base32 permanece somente no servidor.
 - Histórico avançado com filtros por período, status, modo e saúde, busca por nome/ID e resumo comparativo de chamadas, ASR, PDD, jitter, perda e score. O histórico é independente do `JobManager` e nunca recria um job ativo ao abrir um snapshot concluído.
 - **Filtros avançados de histórico (v2.53):** baseline aceito, número mínimo de chamadas, PDD máximo, ASR mínimo, perda máxima e quantidade mínima de chamadas com RTP unilateral; o tempo total de processamento também é persistido para comparação operacional.
 - **Telemetria operacional por etapa (v2.53):** registra wall time, CPU do processo e pico RSS quando suportado, além de tempos agregados de metadata/SIP/SDP/correlação/RTP/RTCP/métricas/diagnóstico/relatório. Essa telemetria é descritiva e nunca altera score, métricas ou diagnóstico VoIP.
@@ -272,6 +273,17 @@ O checklist continua sendo **orientação de validação externa**, não causa r
 | `MIN_RECOMMENDED_CPU_CORES` | `2` | Núcleos de CPU recomendados exibidos pelo preflight; não bloqueia análise |
 | `HISTORY_DB` | `data/analysis_history.db` | Caminho do banco SQLite do histórico persistente |
 | `HISTORY_RETENTION_DAYS` | `0` | Retenção automática do histórico em dias; `0` mantém o histórico até exclusão controlada |
+| `TOTP_VIEWER_SECRET` | vazio | Segredo Base32 RFC 6238 do papel Viewer; obrigatório quando `AUTH_MODE=totp` |
+| `TOTP_ANALYST_SECRET` | vazio | Segredo Base32 RFC 6238 do papel Analyst; obrigatório quando `AUTH_MODE=totp` |
+| `TOTP_ADMIN_SECRET` | vazio | Segredo Base32 RFC 6238 do papel Admin; obrigatório quando `AUTH_MODE=totp` e usado server-side como raiz de proteção dos backups `.vcadb` |
+| `TOTP_ISSUER` | `VoIP Capture Analyzer` | Nome exibido pelo aplicativo Authenticator |
+| `TOTP_PERIOD_SECONDS` | `30` | Período TOTP em segundos |
+| `TOTP_DIGITS` | `6` | Quantidade de dígitos do código TOTP (`6` ou `8`) |
+| `TOTP_VALID_WINDOW` | `1` | Janela de tolerância de relógio em passos TOTP para trás/frente |
+| `TOTP_MAX_FAILURES` | `5` | Falhas consecutivas por origem/papel antes do bloqueio temporário |
+| `TOTP_LOCKOUT_SECONDS` | `300` | Duração do bloqueio temporário após excesso de falhas |
+| `DB_BACKUP_MAX_MB` | `512` | Tamanho máximo aceito para um arquivo `.vcadb` importado |
+| `DB_BACKUP_KDF_ITERATIONS` | `600000` | Iterações PBKDF2-HMAC-SHA256 usadas para derivar a chave AES-256 do backup protegido; mínimo aceito: 200000 |
 
 Exemplo:
 
@@ -320,7 +332,7 @@ As ferramentas e bibliotecas externas utilizadas pelo ambiente de execução per
 
 A suíte atual está disponível no release mais recente do GitHub:
 
-[Download da suíte atual](https://github.com/brunombarreto/VoIP-Capture-Analyzer/releases/latest/download/VoIP_Capture_Analyzer.zip)
+[Download da suíte atual](https://github.com/VoIP-Capture-Analyzer/VoIP-Capture-Analyzer/releases/latest/download/VoIP_Capture_Analyzer.zip)
 
 ## Desenvolvimento
 
@@ -436,9 +448,97 @@ OIDC_CLIENT_SECRET=<secret-do-cliente-confidencial>
 OIDC_REDIRECT_URI=https://vca.exemplo.com/auth/callback
 ```
 
-`GET /api/security/status` apresenta o **Security Gate** sem expor segredos. Um gate verde/sem warnings depende da configuração de produção; ele não substitui pentest independente. Na v2.54.1 existe um warning conhecido de CSP porque o frontend ainda utiliza o Tailwind browser compiler via CDN, que exige `unsafe-eval`/injeção de estilo. O roadmap prevê substituir isso por CSS estático empacotado antes de considerar a camada web totalmente endurecida para pentest.
+`GET /api/security/status` apresenta o **Security Gate** sem expor segredos. Um gate verde/sem warnings depende da configuração de produção; ele não substitui pentest independente. Desde a v2.57 o frontend usa CSS estático empacotado localmente; o runtime não depende do Tailwind browser compiler/CDN nem de `unsafe-eval`.
 
 A documentação interativa `/docs`, `/redoc` e `/openapi.json` fica desabilitada por padrão (`API_DOCS_ENABLED=0`). O Uvicorn também é iniciado sem o header `Server`.
+
+
+
+### Estrutura de sinalização e controle (v2.68.2)
+
+O VCA diferencia fato observado de hipótese diagnóstica. `180 Ringing` e `183 Session Progress` são respostas provisórias SIP com papéis distintos; a ausência de `180` não é tratada isoladamente como falha. Desde a v2.68.2, a presença de RTP antes do `200 OK` não é suficiente para suprimir o diagnóstico: o Analyzer também avalia a **direção** da early media.
+
+A direção é resolvida de forma conservadora usando os endpoints RTP anunciados no SDP das respostas provisórias `180/183`. RTP **originado** nesses endpoints é tratado como mídia de retorno para o originador naquela perna; RTP apenas **destinado** a eles representa o sentido oposto. O resultado é exposto como `BIDIRECTIONAL`, `RETURN_ONLY`, `OUTBOUND_ONLY`, `UNRESOLVED` ou `NOT_OBSERVED`.
+
+Quando houver `183` sem `180`, o achado `SIP_PROGRESS_WITHOUT_RINGING` é suprimido apenas quando há mídia de retorno observável antes do atendimento. Early media somente no sentido de saída permanece como evidência compatível com ausência de ringback remoto. No modo **Sinalização**, RTP continua explicitamente não avaliável.
+
+As análises **Macro** e **Micro** exibem possíveis causas como hipóteses a confirmar, incluindo SBC/PBX, encaminhamento de respostas provisórias, early media unidirecional, firewall/NAT, roteamento e media proxy. SDP descreve parâmetros de mídia e RTP representa a mídia efetivamente observada; STUN/TURN não são inferidos como causa sem evidência compatível.
+
+No **Checklist de validação de infraestrutura**, `Expandir todos / Recolher todos` afeta todos os itens simultaneamente. Validações externas continuam sem alterar as evidências extraídas da captura.
+
+### Paridade visual PDF Técnico ↔ DOCX (v2.67.0)
+
+- **DOCX editável com identidade do PDF Técnico:** A4, margens equivalentes, logotipo, barra de destaque, meta-card, badge de saúde, cards de KPI, mapa do documento, blocos de proveniência, hierarquia de títulos, tabelas, gráficos e rodapé seguem o mesmo contrato visual do PDF.
+- **Mesma organização e conteúdo técnico:** o DOCX segue as mesmas oito seções e reproduz os mesmos indicadores, tabelas, gráficos, RTCP, codec/mídia, timeline, achados e anexo de limitações. Pequenas diferenças de paginação entre Word/LibreOffice e WeasyPrint são esperadas.
+- **Fonte única:** PDF Técnico e DOCX continuam derivados do mesmo snapshot e dos mesmos gráficos em memória; o DOCX não é uma imagem do PDF e permanece editável.
+- **Repositório oficial:** referências de download/licença passam para `https://github.com/VoIP-Capture-Analyzer/VoIP-Capture-Analyzer/`.
+- **SIP Signaling Coverage:** permanece diferida até existir conjunto de capturas de homologação suficiente; esta release não altera semântica SIP/SDP/RTP/RTCP.
+
+### Experiência de relatórios e paridade de exportação (v2.66.0)
+
+- **Viewer / Limpar tela:** `DELETE /api/runtime/reset` é permitido a Viewer, Analyst e Admin porque limpa somente estado efêmero concluído/cancelado; não apaga histórico persistido nem executa manutenção administrativa.
+- **PDF Técnico e Executivo:** capa/meta-card, status visual de saúde, KPIs padronizados, hierarquia tipográfica mais clara, tabelas com melhor quebra e chamadas micro que podem fluir entre páginas sem criar vazios excessivos.
+- **PDF Técnico:** inclui um mapa do documento e mantém metodologia/reprodutibilidade separadas da cadeia de evidências.
+- **PDF Executivo:** explicita que é uma projeção resumida do mesmo snapshot e mantém os mesmos KPIs compartilhados do relatório técnico.
+- **CSV:** cada linha de chamada passa a repetir o contexto macro do snapshot (`analysis_mode`, saúde, chamadas, ASR, PDD, jitter p95, perda média, RTP unilateral e pico simultâneo), facilitando auditoria isolada e comparação com PDF/DOCX/JSON.
+- **Paridade:** todos os formatos são derivados do mesmo snapshot persistido. O conteúdo não precisa ser idêntico em extensão: PDF Executivo é resumido; PDF Técnico/DOCX são humanos e detalhados; JSON é a fonte estruturada completa; CSV é o inventário tabular de chamadas com contexto macro repetido. Os valores compartilhados devem ser numericamente consistentes.
+
+### Autenticação TOTP por papel e gerenciamento protegido do SQLite (v2.64+, atualizado na v2.65.0)
+
+O modo `AUTH_MODE=totp` implementa TOTP RFC 6238 compartilhado por **papel**, sem cadastro de usuário, senha ou dependência de Google/Microsoft. Cada papel possui um segredo Base32 próprio: `viewer`, `analyst` e `admin`. Na tela de login o operador escolhe o nível e informa o código atual do Authenticator; o backend cria uma sessão RBAC correspondente. Como o segredo é compartilhado por papel, a auditoria identifica o **nível de acesso**, não a pessoa individual.
+
+Gere os segredos e QR Codes com:
+
+```bash
+python scripts/generate_totp_setup.py --role all --output-dir totp-setup --write-env totp-secrets.env
+```
+
+O script cria três PNGs QR Code, imprime as chaves Base32/URIs `otpauth://` e, com `--write-env`, grava `totp-secrets.env` com permissão restrita. A partir da v2.65, **`python run.py` carrega esse arquivo automaticamente quando ele estiver ao lado do launcher**, sem executar conteúdo como shell: apenas chaves TOTP conhecidas são aceitas e variáveis já definidas por systemd, Docker, shell ou secret manager têm precedência. Se o arquivo fornecer ao menos um segredo TOTP e `AUTH_MODE` não estiver definido, o launcher assume `AUTH_MODE=totp`; se `SESSION_SECRET` estiver ausente, cria uma chave efêmera forte para aquele processo.
+
+Para laboratório local, portanto, depois de gerar `totp-secrets.env` basta:
+
+```bash
+python run.py
+```
+
+Em produção, continue configurando `AUTH_MODE=totp`, os segredos TOTP e uma `SESSION_SECRET` **estável** no serviço/secret manager. A chave efêmera criada pelo launcher é apenas conveniência de laboratório e invalida sessões a cada reinício. Proteja ou apague os PNGs após cadastrar os autenticadores, pois eles equivalem às credenciais daquele papel.
+
+```env
+AUTH_MODE=totp
+SESSION_SECRET=<segredo-de-sessao-aleatorio-com-pelo-menos-32-caracteres>
+TOTP_VIEWER_SECRET=<base32-viewer>
+TOTP_ANALYST_SECRET=<base32-analyst>
+TOTP_ADMIN_SECRET=<base32-admin>
+TOTP_ISSUER=VoIP Capture Analyzer
+TOTP_PERIOD_SECONDS=30
+TOTP_DIGITS=6
+TOTP_VALID_WINDOW=1
+TOTP_MAX_FAILURES=5
+TOTP_LOCKOUT_SECONDS=300
+```
+
+O menu **Projeto → Banco de dados** só aparece para sessão `admin`. Exportação e importação exigem ainda **reconfirmação do código TOTP Admin atual**, solicitada em modal somente quando a operação é acionada; no modo completo, `SUBSTITUIR` é confirmado no mesmo modal. O navegador envia somente o código temporário no header `X-TOTP-Code`. O segredo `TOTP_ADMIN_SECRET` nunca é enviado ao cliente e também é usado, com separação de domínio e PBKDF2-HMAC-SHA256, como raiz server-side para derivar a chave AES-256-GCM do contêiner `.vcadb`.
+
+Consequência operacional: se `TOTP_ADMIN_SECRET` for rotacionado, backups antigos protegidos pela chave anterior não podem ser descriptografados com o segredo novo. Preserve o segredo anterior em cofre seguro enquanto existirem backups que ainda precisem ser restaurados, ou reexporte a base depois da rotação.
+
+**Compatibilidade de backup:** a v2.64 usa o formato protegido `VCADB2`, cuja raiz criptográfica é o `TOTP_ADMIN_SECRET`. Backups `.vcadb` criados pela v2.63 com `DB_ADMIN_TOKEN` não são importados diretamente pela v2.64. Para preservar um backup legado, restaure-o com a v2.63 usando o segredo antigo e gere um novo backup depois da migração para v2.64.
+
+A importação aceita **somente** `.vcadb` produzido pelo Analyzer. Antes de qualquer escrita, o backend descriptografa para arquivo temporário com permissão restrita, executa `PRAGMA integrity_check`, `PRAGMA foreign_key_check`, compara o schema com a versão atual, rejeita views/triggers/tabelas virtuais inesperadas e valida os campos JSON persistidos. Nenhum SQL textual proveniente do arquivo é executado.
+
+Modos disponíveis:
+
+- **Incremental:** importa apenas Job IDs inexistentes e preserva integralmente qualquer Job ID já presente na base atual. Registros dependentes acompanham somente os novos jobs.
+- **Completo / substituição:** exige a confirmação textual `SUBSTITUIR`, cria snapshot de rollback e restaura a base anterior se a substituição falhar.
+
+As importações são recusadas enquanto houver análise/processo ativo. `/api/database/*` exige sessão `admin`, CSRF nas mutações e TOTP Admin fresco em export/import. Com `AUTH_MODE=disabled`, o gerenciamento do banco não fica disponível.
+
+O Histórico registra também a origem que iniciou cada análise. Em TOTP compartilhado, o registro é do papel (`TOTP Analyst`/`TOTP Admin`), não da pessoa; em SSO/OIDC é usado o nome/e-mail já presente na sessão. Snapshots anteriores à v2.65 aparecem como `Origem não registrada`.
+
+Endpoints administrativos:
+
+- `GET /api/database/status` — estado do recurso para sessão Admin;
+- `POST /api/database/export` — exporta `.vcadb`; requer sessão Admin, CSRF e header `X-TOTP-Code`;
+- `POST /api/database/import` — importa `.vcadb` com `mode=incremental|replace`; requer os mesmos controles e, em `replace`, `confirmation=SUBSTITUIR`.
 
 ### Exportações
 
@@ -446,6 +546,10 @@ A documentação interativa `/docs`, `/redoc` e `/openapi.json` fica desabilitad
 - **JSON:** formato estruturado para integração, automação, auditoria e troubleshooting; não inclui caminhos locais de gráficos/arquivos.
 - **DOCX:** mantido por compatibilidade e necessidade de edição manual, porém deixou de ser a exportação principal. A remoção futura deve ser tratada como mudança de compatibilidade e não silenciosamente.
 
+
+### Cadastro em Google/Microsoft Authenticator e similares
+
+O QR Code gerado contém um URI padrão `otpauth://totp/...` com algoritmo SHA-1, período de 30 segundos e 6 dígitos por padrão. No aplicativo Authenticator, use **Adicionar conta → Ler QR Code**. Se a câmera não estiver disponível, escolha a opção de **chave de configuração/chave manual**, informe a chave Base32 exibida pelo script, tipo **baseado em tempo (TOTP)** e o mesmo nome do papel. Sincronização correta do relógio do servidor e do celular é necessária; `TOTP_VALID_WINDOW=1` tolera um passo anterior/posterior para pequenos desvios.
 
 ### Login federado Google / Microsoft (v2.54.1)
 
