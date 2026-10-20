@@ -164,6 +164,13 @@ Mudanças em preflight/campos TShark devem testar uma matriz completa, a ausênc
 Capturas SIP/RTP podem conter números, endereços IP, URIs, cabeçalhos, áudio e outras informações sensíveis. Não publique capturas reais em Issues ou Pull Requests sem autorização e sem aplicar a anonimização necessária.
 
 
+### Padrão de identidade de diálogo e SIP Forking (v2.70)
+- Preserve a separação entre **chamada lógica/B2BUA**, **Call-ID físico**, **diálogo canônico** e **branch de forking**; nenhuma heurística B2BUA substitui `Call-ID + tags` quando a identidade normativa está disponível.
+- Desafios `401/407` não materializam branches de forking mesmo quando carregam `To-tag`.
+- Não force uma branch vencedora quando houver múltiplos `2xx`; represente a ambiguidade observada.
+- `CANCEL` só pode ser atribuído a uma branch por evidência de tag ou por correlação conservadora da mesma tentativa (`CSeq`) acompanhada de `487`.
+- Forking é estrutura SIP, não anomalia automática; mudanças nessa engine devem manter ASR, simultaneidade e Call Anomaly Score semanticamente invariantes e incluir testes de regressão.
+
 ### Preparação do ambiente
 
 
