@@ -1,6 +1,8 @@
 # VoIP Capture Analyzer
 
-> **v2.69.0 — SIP Transaction & Failure Semantics:** evolui o VCA de inventário de respostas para interpretação contextual de transações SIP. O Analyzer cruza método, `CSeq`, resposta final, recuperação, `Reason`/Q.850 e referências normativas, distingue desafios `401/407` recuperados de falhas efetivas e preserva a regra de não promover código SIP ou Q.850 isolado a causa raiz. O Gate Core VoIP continua aguardando captura real com RTCP XR/MOS-R-Factor.
+> **v2.72.0 — SDP Offer/Answer Deep Analysis:** reconstrói oferta, resposta, reoferta e late offer por perna/transação, compara codecs, endpoints e direção somente com evidência observável e mantém `488/606` sem SDP de resposta como hipótese, não como prova automática de incompatibilidade. Na timeline, cada **Chamada correlacionada** inicia recolhida; **abrir análise micro** mostra o detalhe imediatamente abaixo do cabeçalho e a expansão dos eventos permanece independente. O Gate Core VoIP continua aguardando captura real com RTCP XR/MOS-R-Factor.
+
+Linha de evolução preservada: **v2.69.0 — SIP Transaction & Failure Semantics** introduziu a interpretação contextual por método/CSeq/recuperação/Reason-Q.850; v2.70.0 acrescentou identidade canônica/forking e v2.71.0 consolidou apresentação da Análise Micro.
 
 
 Framework web para análise técnica de capturas VoIP, com foco em **SIP, SDP, RTP e RTCP**, reconstrução de chamadas, correlação de pernas B2BUA, métricas de mídia e diagnóstico baseado em evidências.
@@ -12,9 +14,10 @@ Framework web para análise técnica de capturas VoIP, com foco em **SIP, SDP, R
 - TShark como decodificador e leitor primário da captura consolidada.
 - Recuperação de SIP/SDP/RTP/RTCP por caminhos alternativos baseados em dados extraídos pelo TShark.
 - Correlação de chamadas com múltiplos `Call-ID`s, incluindo cenários B2BUA.
+- Reconstrução de diálogos/forking e análise SDP Offer/Answer por perna/transação, com reofertas/late offer e conclusão conservadora quando a evidência é insuficiente.
 - Métricas de ASR, PDD (incluindo T1/T2/T3), duração, RTP, perda, jitter, bitrate e PPS quando os dados permitem cálculo confiável.
 - Identificação de RTP unilateral, interrupções assimétricas e gaps de mídia.
-- Linha do tempo correlacionada SIP + RTP.
+- Linha do tempo correlacionada SIP + RTP com cards de chamada recolhidos por padrão, abertura inline da Análise Micro logo abaixo do cabeçalho e expansão independente dos eventos.
 - Fluxo gráfico SIP + RTP compacto para **cada chamada** da Análise Micro em PDF/DOCX, independente do Call Anomaly Score; RTP é resumido por direção para manter relatórios grandes controláveis.
 - Gráficos técnicos e relatório em HTML, PDF e DOCX.
 - Glossário técnico centralizado em **Ajuda**, sem duplicação na tela operacional nem nos relatórios exportados.
