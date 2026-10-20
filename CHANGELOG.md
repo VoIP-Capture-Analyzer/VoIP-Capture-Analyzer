@@ -1,22 +1,23 @@
 # Changelog
 
-## v2.71.0 — Report & UI Presentation Refinement
+## v2.72.0 — SDP Offer/Answer Deep Analysis
 
 ### [Added]
-- User-Agent observado por perna SIP na Análise Micro da interface, PDF/HTML Técnico e DOCX, com resumo por chamada e coluna adicional no CSV.
-- Tempo relativo ao início da chamada no gráfico **Fluxo SIP + RTP**, mantendo a evidência temporal original no snapshot.
-- Coluna **Sentido / direção** na timeline correlacionada, exibindo `IP:porta → IP:porta` para eventos SIP/RTP quando a evidência de endpoint está disponível.
-- Requisito rastreável `VCA-REPORT-003` para consistência de apresentação da Análise Micro.
+- Reconstrução conservadora de SDP Offer/Answer por `Call-ID` físico e transação (`INVITE`, re-INVITE, `UPDATE` e `PRACK`), incluindo late offer em `200 OK` com resposta SDP no `ACK` quando observável.
+- Comparação estruturada de codecs, payloads, `rtpmap`, `fmtp` preservado como evidência, endpoints `c=/m=` e direção `sendrecv/sendonly/recvonly/inactive`.
+- Estados explícitos de negociação (`CONVERGED`, `NO_COMMON_CODEC`, `ANSWER_CODEC_OUTSIDE_OFFER`, `DIRECTION_INCOMPATIBLE`, `INDETERMINATE_CODEC_MAPPING`, `REJECTED_WITHOUT_SDP_ANSWER`, `OFFER_WITHOUT_ANSWER`, `LATE_OFFER_UNANSWERED`).
+- Requisito rastreável `VCA-SDP-003` e superfícies Macro/Micro/JSON/CSV/PDF/DOCX para Offer/Answer.
 
 ### [Changed]
-- Tipografia de corpo/tabelas dos relatórios passa a usar tokens centralizados e consistentes; tabelas deixam de reduzir fonte individualmente para acomodar conteúdo.
-- A interface Micro passa a reutilizar a mesma estrutura de pernas, User-Agent, fluxo temporal e direção da timeline utilizada pelos relatórios técnicos.
-- `User-Agent` e `Server` SIP passam a ser preservados separadamente no parser para evitar misturar evidências de UAC/UAS.
+- `488/606` passa a ser contextualizado com a reconstrução Offer/Answer: somente evidência comparável suficiente eleva a conclusão para incompatibilidade comprovada; rejeição isolada continua hipótese de negociação.
+- Cards de **Chamada correlacionada** na timeline da interface passam a iniciar recolhidos; **abrir análise micro** expande o detalhe imediatamente abaixo do cabeçalho, independentemente da expansão dos eventos.
+- Relatório Executivo recebe resumo compacto de Offer/Answer quando a análise possuir negociações materializadas.
 
 ### [Fixed]
-- Timelines técnicas deixam de exigir interpretação manual de colunas separadas de origem/destino: a direção completa passa a ser exibida em uma única coluna sem remover os campos estruturados.
-- Snapshots históricos sem `user_agents` por perna mantêm fallback de apresentação a partir dos User-Agent observados nas mensagens, sem fabricar associação por perna.
+- Tabelas DOCX removem flags residuais de `noWrap` antes de aplicar exceções explícitas, reduzindo risco de texto longo invadir a coluna adjacente em layout fixo.
+- Tabelas HTML/PDF mantêm wrapping natural em células fixas e conteúdo longo sem truncamento lateral.
+- A UI evita listas enormes de eventos abertas por padrão em capturas com muitos Call-IDs correlacionados.
 
 ### [To do]
-- **SDP Offer/Answer Deep Analysis**: reconstruir ofertas/respostas e reofertas, comparar codecs/atributos/endpoints e somente afirmar incompatibilidade quando a evidência demonstrar ausência de convergência.
+- **SIP NAT / Routing / Connectivity Semantics**: correlacionar source IP/porta com `Via`, `received`, `rport`, `Contact`, `Route`, `Record-Route` e `Max-Forwards`, mantendo STUN/TURN/ICE como evidência contextual quando observável e sem atribuir automaticamente NAT/SIP ALG/SBC como causa raiz.
 - Em paralelo ao roadmap SIP, obter/homologar captura real com RTCP XR PT=207 / VoIP Metrics e MOS/R-Factor reportados e reexecutar o Gate Core VoIP.
