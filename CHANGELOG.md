@@ -1,23 +1,24 @@
 # Changelog
 
-## v2.72.0 — SDP Offer/Answer Deep Analysis
+## v2.73.0 — SIP NAT / Routing / Connectivity Semantics
 
 ### [Added]
-- Reconstrução conservadora de SDP Offer/Answer por `Call-ID` físico e transação (`INVITE`, re-INVITE, `UPDATE` e `PRACK`), incluindo late offer em `200 OK` com resposta SDP no `ACK` quando observável.
-- Comparação estruturada de codecs, payloads, `rtpmap`, `fmtp` preservado como evidência, endpoints `c=/m=` e direção `sendrecv/sendonly/recvonly/inactive`.
-- Estados explícitos de negociação (`CONVERGED`, `NO_COMMON_CODEC`, `ANSWER_CODEC_OUTSIDE_OFFER`, `DIRECTION_INCOMPATIBLE`, `INDETERMINATE_CODEC_MAPPING`, `REJECTED_WITHOUT_SDP_ANSWER`, `OFFER_WITHOUT_ANSWER`, `LATE_OFFER_UNANSWERED`).
-- Requisito rastreável `VCA-SDP-003` e superfícies Macro/Micro/JSON/CSV/PDF/DOCX para Offer/Answer.
+- Nova engine `app/analyzers/sip_connectivity.py` para correlacionar `source IP:porta`, `Via sent-by`, `received`, `rport`, `Contact`, `Route`, `Record-Route` e `Max-Forwards` como evidência topológica SIP.
+- Confirmação conservadora de retorno `received/rport` por transação, distinguindo evidência compatível de NAT traversal de inconsistência observada.
+- Detecção explícita de `483 Too Many Hops` e candidato de loop apenas quando a mesma tentativa reaparece no mesmo par origem/destino com `Max-Forwards` decrescente.
+- Contexto ICE extraído do SDP, incluindo candidatos `host`, `srflx` e `relay`; `srflx` é tratado como evidência compatível com STUN e `relay` como evidência compatível com TURN, sem presumir sucesso ou causa raiz.
+- Requisito rastreável `VCA-SIP-006`, novas colunas CSV e superfícies Macro/Micro/JSON/PDF/DOCX/Executivo para NAT/roteamento/conectividade.
+- Documentação moderna do projeto: Datasheet e Guia de Administração em DOCX/PDF, versionados dentro de `docs/`.
 
 ### [Changed]
-- `488/606` passa a ser contextualizado com a reconstrução Offer/Answer: somente evidência comparável suficiente eleva a conclusão para incompatibilidade comprovada; rejeição isolada continua hipótese de negociação.
-- Cards de **Chamada correlacionada** na timeline da interface passam a iniciar recolhidos; **abrir análise micro** expande o detalhe imediatamente abaixo do cabeçalho, independentemente da expansão dos eventos.
-- Relatório Executivo recebe resumo compacto de Offer/Answer quando a análise possuir negociações materializadas.
+- Parser/fallback SIP passa a preservar múltiplos `Via`, `Route`, `Record-Route` e `Max-Forwards` quando disponíveis, mantendo o payload bruto como fonte de enriquecimento quando o TShark não expõe todos os campos nativamente.
+- Inventário de protocolos reconhece também `stun` e `turnchannel` quando o TShark os identificar no `frame.protocols`; a ausência desses protocolos permanece N/A/0 e não impede evidência ICE via SDP.
+- Backlog/roadmap canônico foi atualizado para refletir a conclusão de SIP Transaction Semantics, Dialog/Forking, Presentation Refinement, SDP Offer/Answer e SIP NAT/Routing, mantendo RTCP XR/MOS como trilha paralela do Core Gate.
 
 ### [Fixed]
-- Tabelas DOCX removem flags residuais de `noWrap` antes de aplicar exceções explícitas, reduzindo risco de texto longo invadir a coluna adjacente em layout fixo.
-- Tabelas HTML/PDF mantêm wrapping natural em células fixas e conteúdo longo sem truncamento lateral.
-- A UI evita listas enormes de eventos abertas por padrão em capturas com muitos Call-IDs correlacionados.
+- Corrigida a sobreposição visual entre as colunas **Estado** e **Status** em `5. Inventário consolidado de chamadas` no PDF/HTML Técnico, alinhando `colgroup` e CSS e ampliando a largura efetiva de Estado.
+- O DOCX também passa a reservar mais largura para Estado e permite quebra segura nessa coluna, evitando `COMPLETED200`/`CANCELLED487` em renderizações compactas.
 
 ### [To do]
-- **SIP NAT / Routing / Connectivity Semantics**: correlacionar source IP/porta com `Via`, `received`, `rport`, `Contact`, `Route`, `Record-Route` e `Max-Forwards`, mantendo STUN/TURN/ICE como evidência contextual quando observável e sem atribuir automaticamente NAT/SIP ALG/SBC como causa raiz.
+- **Transaction-aware Retransmissions**: distinguir retransmissão SIP compatível com timers/protocolo, resposta atrasada, timeout, duplicação de captura e perda provável, preservando evidência por transação e evitando classificar repetição esperada como falha.
 - Em paralelo ao roadmap SIP, obter/homologar captura real com RTCP XR PT=207 / VoIP Metrics e MOS/R-Factor reportados e reexecutar o Gate Core VoIP.
