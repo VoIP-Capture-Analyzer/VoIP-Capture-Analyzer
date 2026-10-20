@@ -192,6 +192,13 @@ Use `python activate.py` para criar `.venv`, instalar as dependências e, em Lin
 - Tabelas largas devem usar proporções determinísticas dentro da largura útil A4 (182 mm no DOCX técnico) e priorizar colunas de identificação/texto sem desperdiçar espaço em colunas numéricas curtas.
 - Alterações de layout devem incluir regressão automatizada e validação visual renderizada em PDF/DOCX.
 
+### Padrão de apresentação da Análise Micro
+- Interface, PDF/HTML e DOCX devem compartilhar a mesma hierarquia tipográfica: corpo e tabelas usam tokens centralizados; não reduza fonte de uma tabela isoladamente apenas para fazê-la caber. Primeiro ajuste proporções, quebra natural e paginação.
+- `User-Agent` é evidência observada e deve ser exibido por perna SIP quando disponível. Não usar o header para inferir identidade real do equipamento ou causa de falha.
+- O gráfico **Fluxo SIP + RTP** deve exibir tempo relativo ao início da chamada, preservando o timestamp absoluto nas estruturas de dados/timeline quando disponível.
+- A timeline correlacionada deve exibir **Sentido / direção** como `IP:porta → IP:porta` para SIP/RTP quando os endpoints existirem; ausência de endpoint permanece `N/A`.
+- Mudanças visuais da Micro exigem teste de contrato, renderização PDF/DOCX e inspeção visual antes da release.
+
 ## Drift por chamada, baseline e UI contextual (v2.48)
 
 - O drift por chamada só pode parear snapshots por **identidade canônica exata** (`Call-ID` + conjunto das pernas correlacionadas). Sobreposição parcial, identidade ausente/duplicada ou mudança de correlação deve produzir estado indeterminado/N/A; é proibido escolher o candidato "mais próximo" para fabricar pareamento.
