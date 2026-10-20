@@ -322,3 +322,13 @@ Os assets em `app/static/branding-ready/` são alternativas **inativas** para ev
 - Uma resposta `488/606` sem SDP comparável não é prova de incompatibilidade de codec. Testes devem cobrir convergência, ausência de codec comum, payload dinâmico sem `rtpmap`, reoferta, late offer e rejeição sem answer.
 - Novas tabelas de relatório devem usar larguras determinísticas dentro da área A4 e wrapping natural. `noWrap` só é permitido para tokens curtos comprovadamente seguros; QA visual PDF/DOCX deve incluir conteúdo longo.
 - Cards de chamadas correlacionadas na timeline devem permanecer recolhidos por padrão; a Análise Micro inline e a lista de eventos são controles independentes.
+
+## SIP NAT / Routing / Connectivity Semantics (v2.73+)
+
+- Divergência entre `source IP:porta`, `Via sent-by` e `Contact` é evidência topológica; não conclua automaticamente falha de NAT, SIP ALG, SBC ou firewall.
+- `received` e `rport` devem ser correlacionados com a requisição SIP correspondente antes de afirmar compatibilidade ou inconsistência do retorno de sinalização.
+- `483 Too Many Hops` é evidência forte de esgotamento de hops; candidato de loop sem `483` só pode ser emitido quando houver recirculação observável da mesma tentativa com `Max-Forwards` decrescente.
+- Preserve `Route`, `Record-Route`, múltiplos `Via` e `Max-Forwards` como evidência estruturada e, quando necessário, enriqueça a partir do payload SIP já enquadrado pelo TShark sem inventar valores ausentes.
+- ICE/STUN/TURN são contextuais: candidato ICE `srflx` é evidência compatível com STUN e `relay` com TURN, mas nenhum deles prova sucesso do traversal, qualidade do caminho ou causa raiz.
+- Mudanças nesta camada devem cobrir parser nativo/fallback, CSV/JSON, Macro/Micro e relatórios. O módulo `app/analyzers/sip_connectivity.py` deve manter cobertura de linhas e branches integral para novas regras.
+- QA de relatório deve incluir estados longos no Inventário consolidado; `Estado` deve quebrar dentro da própria célula e nunca invadir `Status`.
