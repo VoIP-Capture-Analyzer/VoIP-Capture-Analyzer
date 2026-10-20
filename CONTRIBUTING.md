@@ -1,3 +1,11 @@
+## Fluxos operacionais e testes da v2.65.0
+
+- `run.py` pode carregar `totp-secrets.env` somente por parser de whitelist; não introduza `source`, `eval` ou execução de shell para ler credenciais. Variáveis do ambiente devem continuar tendo precedência.
+- Alterações em RBAC devem testar explicitamente `viewer`, `analyst` e `admin`; `/api/runtime/reset` faz parte do fluxo do Analyst, enquanto `/api/database/*` e manutenção permanecem Admin.
+- Metadados de ator no Histórico não podem conter TOTP, token, `sub`, cookie ou segredo; TOTP compartilhado identifica apenas o papel.
+- Mudanças em export/import SQLite devem cobrir consulta global ao registro de subprocessos e ambos os modos (`incremental`, `replace`).
+- Conteúdo de governança (`Registro de requisitos VCA`) pertence a Projeto → Metodologia; relatórios exportados devem priorizar evidências, métricas, proveniência e reprodutibilidade do snapshot.
+
 ## Security & Reporting Hardening da v2.57.0
 
 - O CSS utilitário do dashboard/glossário é gerado em `app/static/tailwind.css` e deve permanecer versionado. O runtime Python não requer Node.
@@ -24,6 +32,17 @@ Mudanças em autenticação, sessão, RBAC, CSRF, TLS/reverse proxy, headers, up
 # Contribuindo para o VoIP Capture Analyzer
 
 Obrigado por contribuir com o VoIP Capture Analyzer. O objetivo deste documento é manter as contribuições técnicas, a documentação e o licenciamento consistentes.
+
+## Fluxos de relatório e paridade da v2.67.0
+
+- Alterações em `report.html`, `report_executive.html`, `report.py` ou `report_csv.py` devem preservar a origem única no snapshot e a equivalência dos KPIs compartilhados.
+- O DOCX Técnico deve manter paridade estrutural e visual com o PDF Técnico: mesma ordem de seções, mesmos gráficos/indicadores/tabelas e mesmo conteúdo técnico, tolerando apenas diferenças de paginação inerentes ao motor do Word/LibreOffice.
+- Alterações no renderer DOCX exigem renderização visual do arquivo gerado (DOCX → PNG/PDF) antes da entrega, além dos testes automatizados.
+- O PDF Executivo é uma projeção resumida; não deve introduzir métricas que não existam no Técnico/JSON nem recalcular valores.
+- CSV permanece tabular por chamada, porém repete o contexto macro para ser auditável quando aberto isoladamente.
+- O reset de runtime é uma limpeza de estado efêmero e pode ser executado por Viewer; qualquer exclusão de histórico, baseline, manutenção ou banco continua sujeita ao RBAC correspondente.
+- Novas mudanças visuais devem ser cobertas por testes de contrato e, quando afetarem renderização, por um smoke test WeasyPrint/DOCX.
+
 
 ## Licenciamento e direitos autorais
 
@@ -147,7 +166,24 @@ Capturas SIP/RTP podem conter números, endereços IP, URIs, cabeçalhos, áudio
 
 ### Preparação do ambiente
 
+
+## Governança de release e gestão de estado
+
+A continuidade entre versões é regida pela seção **“Diretriz de Governança e Gestão de Estado (ROADMAP)”** de `docs/VCA_PROJETO_CONCEITO_EVOLUCAO_ROADMAP.md`. Em contribuições de release:
+
+- trate o último `[To do]` publicado como escopo ativo da próxima versão, salvo sobremarcação explícita do usuário para a entrega atual;
+- em modo consulta, planeje e aguarde autorização antes de alterar código/artefatos; em modo execução autorizada, implemente o escopo ativo imediatamente;
+- preserve o próximo `[To do]` no `CHANGELOG.md` e não promova itens do backlog para concluídos sem evidência/testes correspondentes;
+- aplique documentação de forma condicional: README somente para mudanças de instalação/configuração/uso, CONTRIBUTING para mudanças de padrões de engenharia/testes, CHANGELOG em toda release e Glossário somente para novos termos técnicos;
+- execute refatoração, revisão de performance, tratamento de erros/logs, tipagem e regressões pertinentes antes de empacotar a release.
+
+
 Use `python activate.py` para criar `.venv`, instalar as dependências e, em Linux/macOS, abrir um shell já ativado. Para sair do ambiente, use `exit` nesse subshell ou `python deactivate.py` para consultar o comando apropriado.
+
+### Padrão de tabelas de relatório
+- Em PDF/HTML e DOCX, cabeçalhos devem permanecer em uma linha sempre que a largura semântica da coluna comportar o texto; quando a quebra for necessária, ela deve ocorrer em limites naturais de palavras, nunca caractere a caractere.
+- Tabelas largas devem usar proporções determinísticas dentro da largura útil A4 (182 mm no DOCX técnico) e priorizar colunas de identificação/texto sem desperdiçar espaço em colunas numéricas curtas.
+- Alterações de layout devem incluir regressão automatizada e validação visual renderizada em PDF/DOCX.
 
 ## Drift por chamada, baseline e UI contextual (v2.48)
 
@@ -211,6 +247,13 @@ Use `python activate.py` para criar `.venv`, instalar as dependências e, em Lin
 - Filtros de histórico devem continuar parametrizados em SQL. Filtros de drift são apenas de visualização/exportação: não recalculam comparabilidade, severidade nem causalidade.
 - Mudanças nesses contratos devem incluir regressões para preservação de baseline, filtros numéricos, cleanup stale e telemetria descritiva.
 
+
+
+### Gerenciamento do SQLite / backups protegidos
+
+Mudanças em `app/services/database_backup.py`, autenticação TOTP ou `/api/database/*` devem permanecer fail-closed. Exportação/importação exige sessão `admin`, CSRF e reconfirmação TOTP Admin; `TOTP_ADMIN_SECRET` fica somente no servidor e serve como raiz de derivação da proteção do `.vcadb`. Nunca registre segredo Base32, código TOTP, chave derivada, plaintext do backup ou conteúdo sensível do histórico em logs/fixtures. Testes devem cobrir RBAC, código inválido/expirado, rate limit, roundtrip criptográfico, schema malicioso e rollback.
+
+O formato `.vcadb` é um contêiner criptografado, não um script SQL. Importações devem continuar validando integridade SQLite, chaves estrangeiras, schema, ausência de triggers/views/tabelas virtuais inesperadas e JSON persistido antes de escrever na base. O modo incremental não pode sobrescrever Job IDs existentes; o modo de substituição precisa preservar rollback transacional/recuperável. Toda alteração nesses contratos deve cobrir token incorreto, arquivo adulterado, schema incompatível, colisão incremental e substituição completa em testes.
 
 ### Gate de segurança
 
