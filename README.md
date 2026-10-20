@@ -1,6 +1,6 @@
 # VoIP Capture Analyzer
 
-> **v2.68.2 — Directional Early Media Diagnostics:** evolui o diagnóstico de progresso SIP para distinguir early media por direção usando os endpoints anunciados no SDP provisório. O VCA diferencia RTP de saída de RTP de retorno antes do `200 OK`, preserva o diagnóstico conservador de `183` sem `180` e mantém o Gate Core VoIP aguardando captura real com RTCP XR/MOS-R-Factor.
+> **v2.69.0 — SIP Transaction & Failure Semantics:** evolui o VCA de inventário de respostas para interpretação contextual de transações SIP. O Analyzer cruza método, `CSeq`, resposta final, recuperação, `Reason`/Q.850 e referências normativas, distingue desafios `401/407` recuperados de falhas efetivas e preserva a regra de não promover código SIP ou Q.850 isolado a causa raiz. O Gate Core VoIP continua aguardando captura real com RTCP XR/MOS-R-Factor.
 
 
 Framework web para análise técnica de capturas VoIP, com foco em **SIP, SDP, RTP e RTCP**, reconstrução de chamadas, correlação de pernas B2BUA, métricas de mídia e diagnóstico baseado em evidências.
@@ -225,6 +225,19 @@ A interface permite selecionar ou arrastar uma ou mais capturas.
 
 O limite padrão é de **500 MB por arquivo** e **10 arquivos por análise**. Esses valores podem ser alterados por variáveis de ambiente. Além desses limites de entrada, existe um limite operacional independente de **20 milhões de pacotes por análise** (`MAX_ANALYSIS_PACKETS`). O objetivo é evitar aceitar uma captura que o servidor não consiga processar de forma previsível. Todas as capturas usam o mesmo engine incremental. O limiar de 1 milhão de pacotes apenas classifica o **Resource Profile** como `large`, permitindo aplicar políticas de recursos mais conservadoras sem alterar parsing, correlação, métricas ou diagnóstico.
 
+## SIP Transaction & Failure Semantics (v2.69.0)
+
+A v2.69.0 acrescenta uma camada semântica sobre as transações SIP já extraídas pelo engine. O objetivo é distinguir **o resultado observado da transação** de uma hipótese de infraestrutura: um código SIP é interpretado no contexto do método, `CSeq`, sequência de respostas, eventual retry/recuperação e `Reason` estruturado, mas não é convertido automaticamente em causa raiz.
+
+- **401/407 recuperados:** quando o desafio é seguido por nova requisição do mesmo método com `Authorization`/`Proxy-Authorization` observado e resposta `2xx`, o VCA registra recuperação normal e não gera falha técnica.
+- **Estados operacionais:** respostas como `486 Busy Here` permanecem auditáveis como estado do destino e não são tratadas, por si só, como defeito de PBX/SBC/rede.
+- **Falhas técnicas candidatas:** timeouts, falhas de autorização, diálogo/transação inexistente, loops, event packages não suportados, método não implementado e respostas 5xx recebem diagnóstico contextual com método/CSeq, frames, `Retry-After` e evidências Q.850 quando disponíveis.
+- **Reason/Q.850:** o valor numérico observado é preservado e recebe rótulo operacional para leitura humana. A interpretação combinada deixa explícito que esse contexto de interworking não prova qual domínio/equipamento originou a condição.
+- **Métodos de controle:** `PUBLISH`, `SUBSCRIBE`, `NOTIFY`, `MESSAGE`, `INFO`, `OPTIONS` e `REGISTER` podem compor a análise semântica Macro mesmo fora de uma chamada INVITE, mas continuam fora de ASR, simultaneidade e Call Anomaly Score.
+- **Saídas:** o resumo aparece na Macro/Executivo; a Micro expõe transações significativas; PDF/DOCX preservam a mesma cadeia de evidências; JSON mantém o snapshot completo e CSV recebe os principais campos semânticos.
+
+A camada é extensível: códigos não catalogados continuam reportados pela classe (`4xx`, `5xx`, etc.) com texto de fallback, sem inventar significado específico.
+
 ## Semântica e calibração do engine unificado
 
 A calibração introduzida na v2.43 e protegida pela v2.44 usa os três cenários-base acordados: `2001_2002_001`, `9392-to-9999_002` e o Multi-PCAP `captura_sip_00153_20260821123524 + captura_sip_00152_20260821122806`. O objetivo é proteger **semântica**, não criar um caminho especial para essas capturas.
@@ -391,7 +404,7 @@ Exportações: `GET /api/requirements/core-closure-gate/export/json` e `/csv`. A
 
 A continuidade da matriz é verificada por `GET /api/requirements/release-comparison`. O comparador classifica requisitos como `UNCHANGED`, `ENGINEERING_CHANGED`, `METHODOLOGY_CHANGED`, `NORMATIVE_CHANGED`, `ADDED` ou `REMOVED`. Alteração metodológica ou normativa de um requisito já publicado exige reconhecimento textual versionado na própria release; sem esse reconhecimento, o comparador e o Gate de rastreabilidade retornam `FAIL`. Exportações: `GET /api/requirements/release-comparison/export/json` e `/csv`.
 
-Na v2.51 o Gate de fechamento permanece `OPEN` de forma deliberada: ainda existem lacunas identificadas em Reason/Q.850 estruturado, atributos de direção SDP, classificação explícita de early media e validação ponta a ponta de RTCP XR/MOS/R-Factor com captura real apropriada. O NER continua `N/A`/não bloqueante enquanto a evidência disponível não sustentar classificação confiável.
+Na v2.51, naquele momento, o Gate de fechamento permanecia `OPEN` com lacunas em Reason/Q.850 estruturado, atributos de direção SDP, classificação explícita de early media e validação ponta a ponta de RTCP XR/MOS/R-Factor. As três primeiras foram implementadas nas releases posteriores; no estado atual, os bloqueadores do Core permanecem somente RTCP XR e MOS/R-Factor com captura real apropriada. O NER continua `N/A`/não bloqueante enquanto a evidência disponível não sustentar classificação confiável.
 
 ## Contato
 
