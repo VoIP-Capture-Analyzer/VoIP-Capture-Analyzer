@@ -1,18 +1,22 @@
 # Changelog
 
-## v2.68.2
+## v2.71.0 — Report & UI Presentation Refinement
 
 ### [Added]
-- Classificação direcional de early media (`BIDIRECTIONAL`, `RETURN_ONLY`, `OUTBOUND_ONLY`, `UNRESOLVED`, `NOT_OBSERVED`) baseada nos endpoints RTP anunciados pelo SDP das respostas provisórias `180/183`.
-- Evidências estruturadas `early_media_return_path_observed`, `provisional_sdp_endpoints` e direção da mídia provisória nas análises Micro/relatórios.
-- Testes de regressão para o cenário real `183` sem `180` com RTP apenas originador → destino antes do `200 OK`.
+- User-Agent observado por perna SIP na Análise Micro da interface, PDF/HTML Técnico e DOCX, com resumo por chamada e coluna adicional no CSV.
+- Tempo relativo ao início da chamada no gráfico **Fluxo SIP + RTP**, mantendo a evidência temporal original no snapshot.
+- Coluna **Sentido / direção** na timeline correlacionada, exibindo `IP:porta → IP:porta` para eventos SIP/RTP quando a evidência de endpoint está disponível.
+- Requisito rastreável `VCA-REPORT-003` para consistência de apresentação da Análise Micro.
 
 ### [Changed]
-- `SIP_PROGRESS_WITHOUT_RINGING` deixa de ser suprimido pela mera existência de RTP pré-atendimento: agora exige mídia de retorno observável para suprimir o achado.
-- Análise Micro em UI, HTML/PDF e DOCX passa a expor a classificação direcional da early media e se houve fluxo de retorno.
+- Tipografia de corpo/tabelas dos relatórios passa a usar tokens centralizados e consistentes; tabelas deixam de reduzir fonte individualmente para acomodar conteúdo.
+- A interface Micro passa a reutilizar a mesma estrutura de pernas, User-Agent, fluxo temporal e direção da timeline utilizada pelos relatórios técnicos.
+- `User-Agent` e `Server` SIP passam a ser preservados separadamente no parser para evitar misturar evidências de UAC/UAS.
 
 ### [Fixed]
-- Corrigido falso negativo da v2.68.1 em cenários com `183 + SDP` e early media unidirecional somente no sentido originador → destino, nos quais o chamador pode permanecer sem ringback remoto.
+- Timelines técnicas deixam de exigir interpretação manual de colunas separadas de origem/destino: a direção completa passa a ser exibida em uma única coluna sem remover os campos estruturados.
+- Snapshots históricos sem `user_agents` por perna mantêm fallback de apresentação a partir dos User-Agent observados nas mensagens, sem fabricar associação por perna.
 
 ### [To do]
-- Obter/homologar captura real com RTCP XR PT=207 / VoIP Metrics e MOS/R-Factor reportados e reexecutar o Gate Core VoIP.
+- **SDP Offer/Answer Deep Analysis**: reconstruir ofertas/respostas e reofertas, comparar codecs/atributos/endpoints e somente afirmar incompatibilidade quando a evidência demonstrar ausência de convergência.
+- Em paralelo ao roadmap SIP, obter/homologar captura real com RTCP XR PT=207 / VoIP Metrics e MOS/R-Factor reportados e reexecutar o Gate Core VoIP.
