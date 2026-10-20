@@ -315,3 +315,10 @@ Ao alterar o fluxo de reabertura do Histórico, preserve estes contratos: normal
 ### Preparação de branding
 
 Os assets em `app/static/branding-ready/` são alternativas **inativas** para eventual migração futura de nome. Não os referencie em templates, CSS, JavaScript, relatórios, login ou favicon sem uma decisão explícita de mudança de branding. A marca ativa permanece `VoIP Capture Analyzer`; testes de release devem garantir que os assets alternativos existam sem alterar o runtime atual.
+
+## SDP Offer/Answer e regressão de apresentação (v2.72+)
+
+- Reconstruções Offer/Answer devem ser feitas por perna física/`Call-ID` e transação; não compare SDPs de pernas B2BUA distintas como se fossem uma única negociação normativa.
+- Uma resposta `488/606` sem SDP comparável não é prova de incompatibilidade de codec. Testes devem cobrir convergência, ausência de codec comum, payload dinâmico sem `rtpmap`, reoferta, late offer e rejeição sem answer.
+- Novas tabelas de relatório devem usar larguras determinísticas dentro da área A4 e wrapping natural. `noWrap` só é permitido para tokens curtos comprovadamente seguros; QA visual PDF/DOCX deve incluir conteúdo longo.
+- Cards de chamadas correlacionadas na timeline devem permanecer recolhidos por padrão; a Análise Micro inline e a lista de eventos são controles independentes.
